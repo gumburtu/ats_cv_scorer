@@ -138,91 +138,63 @@ def inject_dark_theme():
     """Dark theme CSS injection"""
     st.markdown("""
     <style>
-    /* Main app background */
     .main .block-container {
         background-color: #1e1e1e;
         color: #ffffff;
         padding-top: 2rem;
     }
-    
-    /* Sidebar styling */
     .css-1d391kg {
         background-color: #2d2d2d;
     }
-    
-    /* Text color */
     .stMarkdown, .stText, p, h1, h2, h3, h4, h5, h6 {
         color: #ffffff !important;
     }
-    
-    /* Metric styling */
     .metric-container {
         background-color: #2d2d2d;
         padding: 1rem;
         border-radius: 8px;
         border: 1px solid #404040;
     }
-    
-    /* Expander styling */
     .streamlit-expanderHeader {
         background-color: #2d2d2d;
         color: #ffffff;
     }
-    
-    /* Progress bars and custom HTML */
     .stHTML {
         background-color: transparent;
     }
-    
-    /* Info boxes */
     .stInfo {
         background-color: #2d2d2d;
         color: #ffffff;
     }
-    
-    /* Warning boxes */
     .stWarning {
         background-color: #4a3000;
         color: #ffffff;
     }
-    
-    /* Error boxes */
     .stError {
         background-color: #4a0000;
         color: #ffffff;
     }
-    
-    /* Success boxes */
     .stSuccess {
         background-color: #004a00;
         color: #ffffff;
     }
-    
-    /* Button styling */
     .stButton > button {
         background-color: #0066cc;
         color: #ffffff;
         border: none;
         border-radius: 8px;
     }
-    
     .stButton > button:hover {
         background-color: #0052a3;
     }
-    
-    /* Selectbox styling */
     .stSelectbox > div > div {
         background-color: #2d2d2d;
         color: #ffffff;
     }
-    
-    /* File uploader */
     .stFileUploader {
         background-color: #2d2d2d;
         border-radius: 8px;
     }
-    
-    /* Columns */
     .stColumns {
         background-color: transparent;
     }
@@ -264,9 +236,7 @@ class CVAnalyzer:
 
     def preprocess_text(self, text: str) -> str:
         """Metin ön işleme"""
-        # Fazla boşlukları temizle
         text = re.sub(r'\s+', ' ', text)
-        # Özel karakterleri temizle
         text = re.sub(r'[^\w\s\-\+\#\.]', ' ', text)
         return text.strip()
 
@@ -278,45 +248,36 @@ class CVAnalyzer:
             r'experience.*?(\d+)',
             r'(\d+)\s*(?:years?|yıl)\s*(?:of\s*)?experience'
         ]
-        
         years = []
         for pattern in patterns:
             matches = re.findall(pattern, text.lower())
             years.extend([int(m) for m in matches if m.isdigit()])
-        
         return max(years) if years else 0
 
     def match_criteria(self, cv_text: str, criteria_dict: Dict) -> Dict:
         """Kriter eşleşmesi analizi"""
         cv_lower = cv_text.lower()
         summary = {}
-        
         for main_cat, keywords in criteria_dict.items():
             found = []
             for keyword in keywords:
                 if keyword.lower() in cv_lower:
                     found.append(keyword)
-            
             missing = [k for k in keywords if k not in found]
-            
             summary[main_cat] = {
                 "found": found,
                 "missing": missing,
                 "count": len(found),
                 "percentage": round((len(found) / len(keywords)) * 100, 1) if keywords else 0
             }
-        
         return summary
 
     def calculate_detailed_score(self, matched: Dict) -> Dict:
         """Detaylı skor hesaplama"""
         total_keywords = sum(len(v["found"]) + len(v["missing"]) for v in matched.values())
         total_found = sum(len(v["found"]) for v in matched.values())
-        
         if total_keywords == 0:
             return {"overall": 0, "by_category": {}}
-        
-        # Kategori bazlı skorlar
         category_scores = {}
         for cat, results in matched.items():
             total_cat = len(results["found"]) + len(results["missing"])
@@ -324,19 +285,13 @@ class CVAnalyzer:
                 category_scores[cat] = round((len(results["found"]) / total_cat) * 100, 1)
             else:
                 category_scores[cat] = 0
-        
-        # Genel skor
         overall_score = round((total_found / total_keywords) * 100, 1)
-        
-        # Bonus puanlar
         bonus = 0
         if overall_score > 70:
             bonus += 5
         if overall_score > 85:
             bonus += 5
-        
         final_score = min(overall_score + bonus, 100)
-        
         return {
             "overall": final_score,
             "by_category": category_scores,
@@ -348,63 +303,40 @@ class CVAnalyzer:
     def get_recommendations(self, role: str, matched: Dict, score_info: Dict) -> List[str]:
         """Kişiselleştirilmiş öneriler"""
         recommendations = []
-        
-        # Düşük skorlu kategoriler için öneriler
         low_categories = [cat for cat, score in score_info["by_category"].items() if score < 50]
-        
         if low_categories:
             recommendations.append(f"🔴 Öncelikli geliştirme alanları: {', '.join(low_categories)}")
-        
-        # Rol bazlı öneriler
         if role == "Manual Tester":
             if score_info["by_category"].get("Teknik Beceriler", 0) < 50:
                 recommendations.append("💡 SQL ve API testing becerilerinizi geliştirin ve CV'nize ekleyin")
             if score_info["by_category"].get("Test Araçları", 0) < 60:
                 recommendations.append("🔧 Popüler test araçlarından (JIRA, TestRail) deneyiminizi vurgulayın")
-        
         elif role == "Test Automation Engineer":
             if score_info["by_category"].get("Programming Languages", 0) < 60:
                 recommendations.append("💻 Programlama dili yetkinliğinizi açık bir şekilde belirtin")
             if score_info["by_category"].get("Automation Frameworks", 0) < 50:
                 recommendations.append("🤖 Selenium, Cypress gibi automation framework deneyiminizi ekleyin")
-        
         elif role == "Full Stack Automation Engineer":
             if score_info["by_category"].get("Performance & Security", 0) < 40:
                 recommendations.append("⚡ Performance ve security testing araçlarından deneyiminizi belirtin")
             if score_info["by_category"].get("Infrastructure & Cloud", 0) < 40:
                 recommendations.append("☁️ Cloud platform ve DevOps araçları deneyiminizi ekleyin")
-        
-        # Genel öneriler
         if score_info["overall"] < 70:
             recommendations.append("📄 CV'nizde daha fazla teknik detay ve proje örneği ekleyin")
-        
         recommendations.append("🎯 LinkedIn profilinizi ve sertifikalarınızı eklemeyi unutmayın")
         recommendations.append("📊 Proje sonuçlarınızı sayısal verilerle destekleyin")
-        
         return recommendations
 
     def analyze_cv(self, file, role: str) -> Dict:
         """Ana analiz fonksiyonu"""
-        # Metin çıkarma
         raw_text = self.extract_text(file)
         if not raw_text or len(raw_text) < 100:
             return {"error": "CV'den yeterli metin çıkarılamadı"}
-        
-        # Metin ön işleme
         self.cv_text = self.preprocess_text(raw_text)
-        
-        # Kriter eşleşmesi
         matched = self.match_criteria(self.cv_text, CRITERIA[role])
-        
-        # Skor hesaplama
         score_info = self.calculate_detailed_score(matched)
-        
-        # Deneyim yılı çıkarma
         experience_years = self.extract_experience_years(self.cv_text)
-        
-        # Öneriler
         recommendations = self.get_recommendations(role, matched, score_info)
-        
         return {
             "matched": matched,
             "score_info": score_info,
@@ -418,22 +350,21 @@ class CVAnalyzer:
 def create_score_display(score: float) -> str:
     """Dark theme skor göstergesi"""
     if score >= 85:
-        color = "#4ade80"  # Green
+        color = "#4ade80"
         status = "Mükemmel"
         emoji = "🟢"
     elif score >= 70:
-        color = "#fbbf24"  # Yellow
+        color = "#fbbf24"
         status = "İyi"
         emoji = "🟡"
     elif score >= 50:
-        color = "#60a5fa"  # Blue
+        color = "#60a5fa"
         status = "Orta"
         emoji = "🟠"
     else:
-        color = "#f87171"  # Red
+        color = "#f87171"
         status = "Zayıf"
         emoji = "🔴"
-    
     progress_html = f"""
     <div style="text-align: center; margin: 20px 0; padding: 20px; background-color: #2d2d2d; border-radius: 12px; border: 1px solid #404040;">
         <div style="font-size: 48px; font-weight: bold; color: {color}; margin-bottom: 10px;">
@@ -452,19 +383,16 @@ def create_score_display(score: float) -> str:
 def create_category_bars(category_scores: Dict) -> str:
     """Dark theme kategori çubukları - Fixed HTML"""
     html_parts = []
-    
     for category, score in category_scores.items():
         if score >= 70:
-            color = "#4ade80"  # Green
+            color = "#4ade80"
             emoji = "🟢"
         elif score >= 50:
-            color = "#fbbf24"  # Yellow
+            color = "#fbbf24"
             emoji = "🟡"
         else:
-            color = "#f87171"  # Red
+            color = "#f87171"
             emoji = "🔴"
-        
-        # Safer HTML with proper escaping
         category_html = f"""
         <div style="margin: 15px 0; padding: 15px; border-radius: 8px; background-color: #2d2d2d; border: 1px solid #404040;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -477,7 +405,6 @@ def create_category_bars(category_scores: Dict) -> str:
         </div>
         """
         html_parts.append(category_html)
-    
     return '<div style="margin: 20px 0;">' + ''.join(html_parts) + '</div>'
 
 # --- 6. Streamlit Ana Uygulama ---
@@ -489,11 +416,7 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded"
     )
-    
-    # Dark theme injection
     inject_dark_theme()
-    
-    # Ana başlık
     st.title("🎯 Gelişmiş ATS CV Puanlayıcı")
     st.markdown("""
     <div style='background-color: #2d2d2d; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #404040;'>
@@ -501,67 +424,42 @@ def main():
         <p style='color: #cccccc; margin: 0;'>CV'nizi ATS (Applicant Tracking Systems) sistemlerine hazırlayın, detaylı analiz ve öneriler alın!</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Sidebar
     with st.sidebar:
         st.header("⚙️ Ayarlar")
-        
-        # Rol seçimi
         role = st.selectbox(
             "📌 Hedef Rolünüzü Seçin",
             list(CRITERIA.keys()),
             help="Başvurmak istediğiniz yazılım testi rolünü seçin"
         )
-        
-        # Rol hakkında bilgi
         role_info = {
             "Manual Tester": "🔍 Manuel test süreçlerinde uzman, test senaryoları yazan ve uygulayan pozisyon",
             "Test Automation Engineer": "🤖 Test otomasyonu araçları kullanarak otomatik testler geliştiren pozisyon",
             "Full Stack Automation Engineer": "🚀 UI, API, Database ve Performance testlerini kapsayan tam yığın test uzmanı"
         }
-        
         st.info(role_info[role])
-        
-        # Dosya yükleme
         uploaded_file = st.file_uploader(
             "📄 CV'nizi Yükleyin",
             type=["pdf", "docx"],
             help="PDF veya Word formatında CV yükleyebilirsiniz"
         )
-        
-        # Analiz butonu
         analyze_button = st.button("🚀 CV'yi Analiz Et", type="primary")
-    
-    # Ana içerik
     if analyze_button:
         if not uploaded_file:
             st.warning("⚠️ Lütfen önce bir CV dosyası yükleyin.")
             st.stop()
-        
-        # Analiz başlat
         with st.spinner("🔄 CV analiz ediliyor..."):
             analyzer = CVAnalyzer()
             results = analyzer.analyze_cv(uploaded_file, role)
-        
         if "error" in results:
             st.error(f"❌ {results['error']}")
             st.stop()
-        
-        # Sonuçları görüntüle
         st.markdown("## 📊 Analiz Sonuçları")
-        
-        # Skor göstergesi
         score_html = create_score_display(results["score_info"]["overall"])
         st.markdown(score_html, unsafe_allow_html=True)
-        
-        # Kategori çubukları
         st.markdown("### 📈 Kategori Bazlı Performans")
         category_html = create_category_bars(results["score_info"]["by_category"])
         st.markdown(category_html, unsafe_allow_html=True)
-        
-        # Özet bilgiler
         col1, col2, col3, col4 = st.columns(4)
-        
         with col1:
             st.markdown(f"""
             <div class="metric-container">
@@ -569,7 +467,6 @@ def main():
                 <div style="color: #cccccc; font-size: 14px;">Toplam Anahtar Kelime</div>
             </div>
             """, unsafe_allow_html=True)
-        
         with col2:
             st.markdown(f"""
             <div class="metric-container">
@@ -577,7 +474,6 @@ def main():
                 <div style="color: #cccccc; font-size: 14px;">Eşleşen Kelime</div>
             </div>
             """, unsafe_allow_html=True)
-        
         with col3:
             st.markdown(f"""
             <div class="metric-container">
@@ -585,7 +481,6 @@ def main():
                 <div style="color: #cccccc; font-size: 14px;">Deneyim Yılı</div>
             </div>
             """, unsafe_allow_html=True)
-        
         with col4:
             st.markdown(f"""
             <div class="metric-container">
@@ -593,20 +488,13 @@ def main():
                 <div style="color: #cccccc; font-size: 14px;">Kelime Sayısı</div>
             </div>
             """, unsafe_allow_html=True)
-        
-        # Öneriler
         st.markdown("## 💡 Kişiselleştirilmiş Öneriler")
-        
         for i, recommendation in enumerate(results["recommendations"], 1):
             st.markdown(f"**{i}.** {recommendation}")
-        
-        # Detaylı analiz
         st.markdown("## 🔍 Detaylı Kategori Analizi")
-        
         for category, data in results["matched"].items():
             with st.expander(f"{category} - {data['percentage']}% ({data['count']} adet)"):
                 col1, col2 = st.columns(2)
-                
                 with col1:
                     st.markdown("**✅ Bulunan Kelimeler:**")
                     if data["found"]:
@@ -614,29 +502,21 @@ def main():
                             st.markdown(f"• {keyword}")
                     else:
                         st.markdown("_Bulunan kelime yok_")
-                
                 with col2:
                     st.markdown("**❌ Eksik Kelimeler:**")
                     if data["missing"]:
-                        for keyword in data["missing"][:10]:  # İlk 10 eksik
+                        for keyword in data["missing"][:10]:
                             st.markdown(f"• {keyword}")
                         if len(data["missing"]) > 10:
                             st.markdown(f"... ve {len(data['missing']) - 10} kelime daha")
                     else:
                         st.markdown("_Eksik kelime yok_")
-        
-        # ATS İpuçları
         st.markdown("## 💼 ATS İpuçları")
-        
         for category, tips in ATS_TIPS.items():
             with st.expander(f"{category} İpuçları"):
                 for tip in tips:
                     st.markdown(f"• {tip}")
-        
-        # Rapor indirme
         st.markdown("## 📥 Rapor İndir")
-        
-        # Rapor hazırlama
         report_data = {
             "Role": role,
             "Score": results["score_info"]["overall"],
@@ -648,15 +528,29 @@ def main():
             "Category_Scores": results["score_info"]["by_category"],
             "Recommendations": results["recommendations"]
         }
-        
         report_json = json.dumps(report_data, indent=2, ensure_ascii=False)
-        
         st.download_button(
             label="📊 JSON Raporu İndir",
             data=report_json,
             file_name=f"cv_analysis_{role.replace(' ', '_').lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json"
         )
-    
     else:
         # Başlangıç sayfası
+        st.markdown("""
+        <div style='background-color: #2d2d2d; padding: 28px; border-radius: 10px; margin-top: 25px; border: 1px solid #404040;'>
+            <h4 style='color: #ffffff; margin-bottom: 12px;'>Nasıl Kullanılır?</h4>
+            <ul style="color: #cccccc; font-size: 16px; line-height: 1.7;">
+                <li>Sol menüden başvurmak istediğiniz <b>rolü</b> seçin</li>
+                <li>CV'nizi <b>PDF</b> veya <b>DOCX</b> formatında yükleyin</li>
+                <li>"CV'yi Analiz Et" butonuna tıklayın</li>
+                <li>Detaylı skor, kategori analizi ve önerileri inceleyin</li>
+                <li>JSON formatında kişisel analiz raporunuzu indirin</li>
+            </ul>
+            <hr style="border: 1px solid #404040;">
+            <b>✨ İpucu:</b> Skorunuzu yükseltmek için eksik olan anahtar kelimeleri ve önerileri dikkate alın!
+        </div>
+        """, unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    main()
