@@ -172,5 +172,5 @@ if st.button("🚀 LLM ile Analiz Et"):
 
 else:
     st.info("""
-    👈 Sol panelden rolünüzü seçin, CV'nizi yükleyin ve 'LLM ile Analiz Et' butonuna basın.
+    Panelden rolünüzü seçin, CV'nizi yükleyin ve 'LLM ile Analiz Et' butonuna basın.
     """)
