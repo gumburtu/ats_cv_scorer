@@ -133,7 +133,103 @@ ATS_TIPS = {
     ]
 }
 
-# --- 3. Yardımcı Fonksiyonlar ---
+# --- 3. Dark Theme CSS ---
+def inject_dark_theme():
+    """Dark theme CSS injection"""
+    st.markdown("""
+    <style>
+    /* Main app background */
+    .main .block-container {
+        background-color: #1e1e1e;
+        color: #ffffff;
+        padding-top: 2rem;
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background-color: #2d2d2d;
+    }
+    
+    /* Text color */
+    .stMarkdown, .stText, p, h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+    }
+    
+    /* Metric styling */
+    .metric-container {
+        background-color: #2d2d2d;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #404040;
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background-color: #2d2d2d;
+        color: #ffffff;
+    }
+    
+    /* Progress bars and custom HTML */
+    .stHTML {
+        background-color: transparent;
+    }
+    
+    /* Info boxes */
+    .stInfo {
+        background-color: #2d2d2d;
+        color: #ffffff;
+    }
+    
+    /* Warning boxes */
+    .stWarning {
+        background-color: #4a3000;
+        color: #ffffff;
+    }
+    
+    /* Error boxes */
+    .stError {
+        background-color: #4a0000;
+        color: #ffffff;
+    }
+    
+    /* Success boxes */
+    .stSuccess {
+        background-color: #004a00;
+        color: #ffffff;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background-color: #0066cc;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+    }
+    
+    .stButton > button:hover {
+        background-color: #0052a3;
+    }
+    
+    /* Selectbox styling */
+    .stSelectbox > div > div {
+        background-color: #2d2d2d;
+        color: #ffffff;
+    }
+    
+    /* File uploader */
+    .stFileUploader {
+        background-color: #2d2d2d;
+        border-radius: 8px;
+    }
+    
+    /* Columns */
+    .stColumns {
+        background-color: transparent;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 4. Yardımcı Fonksiyonlar ---
 
 class CVAnalyzer:
     def __init__(self):
@@ -317,65 +413,66 @@ class CVAnalyzer:
             "word_count": len(self.cv_text.split())
         }
 
-# --- 4. Görselleştirme Fonksiyonları ---
+# --- 5. Görselleştirme Fonksiyonları (Dark Theme) ---
 
 def create_score_display(score: float) -> str:
-    """Skor göstergesi HTML olarak oluşturma"""
+    """Dark theme skor göstergesi"""
     if score >= 85:
-        color = "#28a745"  # Yeşil
+        color = "#4ade80"  # Green
         status = "Mükemmel"
         emoji = "🟢"
     elif score >= 70:
-        color = "#ffc107"  # Sarı
+        color = "#fbbf24"  # Yellow
         status = "İyi"
         emoji = "🟡"
     elif score >= 50:
-        color = "#17a2b8"  # Mavi
+        color = "#60a5fa"  # Blue
         status = "Orta"
         emoji = "🟠"
     else:
-        color = "#dc3545"  # Kırmızı
+        color = "#f87171"  # Red
         status = "Zayıf"
         emoji = "🔴"
     
     progress_html = f"""
-    <div style="text-align: center; margin: 20px 0;">
+    <div style="text-align: center; margin: 20px 0; padding: 20px; background-color: #2d2d2d; border-radius: 12px; border: 1px solid #404040;">
         <div style="font-size: 48px; font-weight: bold; color: {color}; margin-bottom: 10px;">
             {score}%
         </div>
-        <div style="font-size: 24px; margin-bottom: 20px;">
+        <div style="font-size: 24px; margin-bottom: 20px; color: #ffffff;">
             {emoji} {status}
         </div>
-        <div style="width: 100%; background-color: #e9ecef; border-radius: 10px; overflow: hidden;">
-            <div style="width: {score}%; height: 30px; background-color: {color}; border-radius: 10px; transition: width 0.3s ease;"></div>
+        <div style="width: 100%; background-color: #1e1e1e; border-radius: 10px; overflow: hidden; height: 25px; border: 1px solid #404040;">
+            <div style="width: {score}%; height: 100%; background: linear-gradient(90deg, {color}, {color}80); border-radius: 10px; transition: width 0.3s ease;"></div>
         </div>
     </div>
     """
     return progress_html
 
 def create_category_bars(category_scores: Dict) -> str:
-    """Kategori bazlı skor çubukları HTML olarak oluşturma"""
+    """Dark theme kategori çubukları - Fixed HTML"""
     html_parts = []
     
     for category, score in category_scores.items():
         if score >= 70:
-            color = "#28a745"  # Yeşil
+            color = "#4ade80"  # Green
             emoji = "🟢"
         elif score >= 50:
-            color = "#ffc107"  # Sarı
+            color = "#fbbf24"  # Yellow
             emoji = "🟡"
         else:
-            color = "#dc3545"  # Kırmızı
+            color = "#f87171"  # Red
             emoji = "🔴"
         
+        # Safer HTML with proper escaping
         category_html = f"""
-        <div style="margin: 15px 0; padding: 10px; border-radius: 8px; background-color: #f8f9fa;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                <span style="font-weight: bold; font-size: 14px;">{category}</span>
+        <div style="margin: 15px 0; padding: 15px; border-radius: 8px; background-color: #2d2d2d; border: 1px solid #404040;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-weight: bold; font-size: 14px; color: #ffffff;">{category}</span>
                 <span style="font-weight: bold; color: {color};">{emoji} {score}%</span>
             </div>
-            <div style="width: 100%; background-color: #e9ecef; border-radius: 5px; overflow: hidden; height: 20px;">
-                <div style="width: {score}%; height: 100%; background-color: {color}; transition: width 0.3s ease;"></div>
+            <div style="width: 100%; background-color: #1e1e1e; border-radius: 6px; overflow: hidden; height: 22px; border: 1px solid #404040;">
+                <div style="width: {score}%; height: 100%; background: linear-gradient(90deg, {color}, {color}80); transition: width 0.5s ease;"></div>
             </div>
         </div>
         """
@@ -383,7 +480,7 @@ def create_category_bars(category_scores: Dict) -> str:
     
     return '<div style="margin: 20px 0;">' + ''.join(html_parts) + '</div>'
 
-# --- 5. Streamlit Ana Uygulama ---
+# --- 6. Streamlit Ana Uygulama ---
 
 def main():
     st.set_page_config(
@@ -393,12 +490,15 @@ def main():
         initial_sidebar_state="expanded"
     )
     
+    # Dark theme injection
+    inject_dark_theme()
+    
     # Ana başlık
     st.title("🎯 Gelişmiş ATS CV Puanlayıcı")
     st.markdown("""
-    <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px; margin-bottom: 20px;'>
-        <h4>📋 Yazılım Test Mühendisliği Rollerine Özel CV Analizi</h4>
-        <p>CV'nizi ATS (Applicant Tracking Systems) sistemlerine hazırlayın, detaylı analiz ve öneriler alın!</p>
+    <div style='background-color: #2d2d2d; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #404040;'>
+        <h4 style='color: #ffffff; margin-bottom: 10px;'>📋 Yazılım Test Mühendisliği Rollerine Özel CV Analizi</h4>
+        <p style='color: #cccccc; margin: 0;'>CV'nizi ATS (Applicant Tracking Systems) sistemlerine hazırlayın, detaylı analiz ve öneriler alın!</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -463,16 +563,36 @@ def main():
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric("Toplam Anahtar Kelime", results["score_info"]["total_keywords"])
+            st.markdown(f"""
+            <div class="metric-container">
+                <div style="color: #ffffff; font-size: 24px; font-weight: bold;">{results["score_info"]["total_keywords"]}</div>
+                <div style="color: #cccccc; font-size: 14px;">Toplam Anahtar Kelime</div>
+            </div>
+            """, unsafe_allow_html=True)
         
         with col2:
-            st.metric("Eşleşen Kelime", results["score_info"]["total_found"])
+            st.markdown(f"""
+            <div class="metric-container">
+                <div style="color: #4ade80; font-size: 24px; font-weight: bold;">{results["score_info"]["total_found"]}</div>
+                <div style="color: #cccccc; font-size: 14px;">Eşleşen Kelime</div>
+            </div>
+            """, unsafe_allow_html=True)
         
         with col3:
-            st.metric("Deneyim Yılı", f"{results['experience_years']} yıl")
+            st.markdown(f"""
+            <div class="metric-container">
+                <div style="color: #60a5fa; font-size: 24px; font-weight: bold;">{results['experience_years']} yıl</div>
+                <div style="color: #cccccc; font-size: 14px;">Deneyim Yılı</div>
+            </div>
+            """, unsafe_allow_html=True)
         
         with col4:
-            st.metric("Kelime Sayısı", results["word_count"])
+            st.markdown(f"""
+            <div class="metric-container">
+                <div style="color: #fbbf24; font-size: 24px; font-weight: bold;">{results["word_count"]}</div>
+                <div style="color: #cccccc; font-size: 14px;">Kelime Sayısı</div>
+            </div>
+            """, unsafe_allow_html=True)
         
         # Öneriler
         st.markdown("## 💡 Kişiselleştirilmiş Öneriler")
@@ -540,55 +660,3 @@ def main():
     
     else:
         # Başlangıç sayfası
-        st.markdown("## 🚀 Nasıl Kullanılır?")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("""
-            ### 1️⃣ Rol Seç
-            Soldaki menüden hedef rolünüzü seçin:
-            - Manual Tester
-            - Test Automation Engineer  
-            - Full Stack Automation Engineer
-            """)
-        
-        with col2:
-            st.markdown("""
-            ### 2️⃣ CV Yükle
-            PDF veya Word formatında CV'nizi yükleyin.
-            En az 100 kelime içermeli.
-            """)
-        
-        with col3:
-            st.markdown("""
-            ### 3️⃣ Analiz Et
-            "CV'yi Analiz Et" butonuna tıklayın ve 
-            detaylı raporunuzu alın.
-            """)
-        
-        st.markdown("---")
-        st.markdown("## 🎯 Özellikler")
-        
-        feature_cols = st.columns(2)
-        
-        with feature_cols[0]:
-            st.markdown("""
-            ### 📊 Detaylı Analiz
-            - **Kategori bazlı skorlama**
-            - **Anahtar kelime eşleşmesi**
-            - **Deneyim yılı tespiti**
-            - **Kelime sayısı analizi**
-            """)
-        
-        with feature_cols[1]:
-            st.markdown("""
-            ### 💡 Akıllı Öneriler
-            - **Kişiselleştirilmiş tavsiyeler**
-            - **Eksik anahtar kelimeler**
-            - **ATS optimizasyon ipuçları**
-            - **Rol bazlı öneriler**
-            """)
-
-if __name__ == "__main__":
-    main()
