@@ -366,7 +366,7 @@ def create_score_display(score: float) -> str:
         </div>
         <div style="width: 100%; background-color: #1e1e1e; border-radius: 10px; overflow: hidden; height: 25px; border: 1px solid #404040;">
             <div style="width: {score}%; height: 100%; background: linear-gradient(90deg, {color}, {color}80); border-radius: 10px; transition: width 0.3s ease;"></div>
-        </div>
+    
     """
     return progress_html
 
