@@ -4,233 +4,201 @@ import os
 import docx2txt
 import pdfplumber
 import re
-import io
-from collections import Counter
-from sklearn.feature_extraction.text import TfidfVectorizer
-import numpy as np
+import json
 
-# ==== UTILITIES ====
+# --- 1. Kriter Matrisleri ---
 
-def extract_text_from_docx(docx_file):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
-        tmp.write(docx_file.read())
-        text = docx2txt.process(tmp.name)
-    os.unlink(tmp.name)
-    return text
-
-def extract_text_from_pdf(pdf_file):
-    text = ""
-    with pdfplumber.open(pdf_file) as pdf:
-        for page in pdf.pages:
-            text += page.extract_text() or ""
-    return text
-
-def preprocess_text(text):
-    text = text.lower()
-    text = re.sub(r"\s+", " ", text)
-    text = re.sub(r"[^a-z0-9\s.,]", "", text)
-    return text
-
-def get_keywords_for_role(role):
-    # Genişletilebilir - role göre anahtar kelimeler
-    keywords = {
-        "Manual Tester": [
-            "test case", "test scenario", "manual testing", "bug", "jira", "test plan", "test execution",
-            "defect", "exploratory", "regression", "test documentation", "qa process"
+CRITERIA = {
+    "Manual Tester": {
+        "Anahtar Kelimeler & Teknik Terimler": [
+            "Software Tester", "QA Tester", "Quality Assurance", "Manual Tester", "QA Engineer",
+            "Smoke Testing", "Sanity Testing", "Regression Testing", "User Acceptance Testing", "UAT",
+            "Exploratory Testing", "Ad-hoc Testing", "Functional Testing", "Integration Testing", "System Testing",
+            "JIRA", "Zephyr", "TestRail", "Xray", "ALM", "Quality Center", "Bugzilla", "Mantis",
+            "Test Plan", "Test Case", "Test Scenario", "Bug Report", "Defect Tracking"
         ],
-        "Test Automation Engineer": [
-            "selenium", "python", "java", "cypress", "automation", "webdriver", "pytest", "jenkins",
-            "ci/cd", "test script", "api testing", "postman", "rest", "bdd", "tdd", "page object",
-            "maven", "gradle", "testng", "allure", "robot framework", "git", "docker"
+        "Yöntemler & Yaklaşımlar": [
+            "SDLC", "STLC", "Agile", "Scrum", "Defect Lifecycle", "Peer Review",
+            "Test Case Review", "Requirement Traceability Matrix", "RTM"
         ],
-        "Full Stack Automation Engineer": [
-            "frontend automation", "backend automation", "selenium", "cypress", "rest assured",
-            "playwright", "javascript", "typescript", "java", "python", "docker", "kubernetes",
-            "ci/cd", "aws", "azure", "microservices", "api automation", "performance testing",
-            "load testing", "jmeter", "gatling", "database testing", "graphql"
+        "Yumuşak Beceriler & Güçlü İfadeler": [
+            "detail oriented", "communication", "teamwork", "time management", "problem solving"
+        ],
+        "Ekstralar": [
+            "SQL", "SELECT", "JOIN", "WHERE", "test data preparation", "API testing", "Postman"
+        ]
+    },
+    "Test Automation Engineer": {
+        "Anahtar Kelimeler & Teknik Terimler": [
+            "Test Automation Engineer", "QA Automation", "SDET", "Software Development Engineer in Test",
+            "Selenium WebDriver", "Cypress", "Playwright", "Appium", "TestNG", "JUnit", "NUnit", "Cucumber",
+            "BDD", "TDD", "Java", "Python", "C#", "JavaScript", "TypeScript",
+            "Postman", "Rest Assured", "SoapUI", "Karate",
+            "Jenkins", "GitLab CI/CD", "GitHub Actions",
+            "Extent Reports", "Allure Reports"
+        ],
+        "Yöntemler & Yaklaşımlar": [
+            "Page Object Model", "Data Driven", "Keyword Driven", "Hybrid",
+            "Git", "GitHub", "Bitbucket", "Docker", "Virtual Machines", "Pipeline"
+        ],
+        "Yumuşak Beceriler & Güçlü İfadeler": [
+            "clean code", "code review", "mentoring", "debugging", "automation ROI"
+        ],
+        "Ekstralar": [
+            "JMeter", "LoadRunner", "OWASP", "AWS", "Azure DevOps"
+        ]
+    },
+    "Full Stack Automation Engineer": {
+        "Anahtar Kelimeler & Teknik Terimler": [
+            "Full Stack QA", "Full Stack Test Automation Engineer", "SDET",
+            "UI automation", "API automation",
+            "database testing", "stored procedures", "views",
+            "JMeter", "Gatling", "Locust", "OWASP", "ZAP", "Burp Suite",
+            "Infrastructure as Code", "Docker Compose", "Kubernetes", "Terraform",
+            "mock data", "service virtualization"
+        ],
+        "Yöntemler & Yaklaşımlar": [
+            "end-to-end test", "microservice", "test strategy", "contract testing",
+            "Pact", "Spring Cloud Contract", "distributed test execution"
+        ],
+        "Yumuşak Beceriler & Güçlü İfadeler": [
+            "leadership", "mentoring", "test strategy", "test debt", "cross-functional", "efficiency metrics"
+        ],
+        "Ekstralar": [
+            "WireMock", "performance test report", "security vulnerability", "scan results"
         ]
     }
-    return keywords.get(role, [])
+}
 
-def keyword_score(cv_text, keywords):
-    # Anahtar kelime eşleşme oranı
-    cv_text = preprocess_text(cv_text)
-    matches = [kw for kw in keywords if kw in cv_text]
-    score = int(100 * len(matches) / len(keywords)) if keywords else 0
-    missing = [kw for kw in keywords if kw not in cv_text]
-    return score, matches, missing
+# --- 2. ATS Tavsiye Mesajları ---
+ATS_TIPS = [
+    "Başlık ve özet kısmında rol odaklı anahtar kelimeler kullanın.",
+    "Her araç, metodoloji ve framework güncel isimleriyle yer almalı.",
+    "İş deneyimlerinde bağlamsal anahtar kelimeler kullanmaya özen gösterin.",
+    "Kısaltmalar yerine açıklamalı isim kullanın (örn: 'JIRA Bug Tracking Tool').",
+    "Teknik yetkinlikleri 'Skills' veya 'Core Competencies' başlığında öne çıkarın.",
+    "İngilizce kullanın, Türkçe terimlerden kaçının.",
+    "Dosya formatını PDF veya DOCX olarak kullanın.",
+    "Yumuşak becerileri de anahtar kelime olarak belirtin.",
+    "Sertifikaları ve LinkedIn URL’nizi eklemeyi unutmayın."
+]
 
-def extract_action_verbs(text):
-    # Sık kullanılan action verb'ler listesi
-    verbs = [
-        "developed", "designed", "implemented", "created", "led", "managed", "executed",
-        "improved", "analyzed", "optimized", "tested", "automated", "collaborated",
-        "integrated", "supported", "documented"
-    ]
-    found = [v for v in verbs if v in text.lower()]
-    return found
+# --- 3. CV'den Metin Çıkarma ---
+def extract_text(file):
+    if file.type == "application/pdf":
+        with pdfplumber.open(file) as pdf:
+            return " ".join([page.extract_text() or "" for page in pdf.pages])
+    elif file.type in [
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"
+    ]:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+            tmp.write(file.read())
+            text = docx2txt.process(tmp.name)
+        os.unlink(tmp.name)
+        return text
+    return ""
 
-def find_metrics(text):
-    # Sayısal metrikleri bul
-    pattern = r"\d+(\.\d+)?\s?(%|percent|users|cases|bugs|issues|coverage|time|minutes|hours|days|saniye|dk|test|project|release|sprint)"
-    found = re.findall(pattern, text.lower())
-    return list(set([f[0] for f in found])) if found else []
+# --- 4. Anahtar Kelime Eşleşmesi (Her başlıktan birkaçını bulmak yeterli!) ---
+def match_criteria(cv_text, criteria_dict):
+    cv_lower = cv_text.lower()
+    summary = {}
+    for main_cat, keywords in criteria_dict.items():
+        found = [k for k in keywords if k.lower() in cv_lower]
+        # En az 2-3 anahtar kelime eşleşmesi olması yeterli
+        summary[main_cat] = {
+            "found": found,
+            "missing": [k for k in keywords if k not in found],
+            "count": len(found)
+        }
+    return summary
 
-def similarity_with_job_desc(cv_text, job_desc):
-    # TF-IDF ile benzerlik ölçümü
-    try:
-        vect = TfidfVectorizer(stop_words="english")
-        tfidf = vect.fit_transform([cv_text, job_desc])
-        sim = (tfidf * tfidf.T).A[0, 1]
-        return int(sim * 100)
-    except Exception:
-        return 0
+def get_critical_missing(matched, critical_n=2):
+    # Her ana başlıktan eksik olanları, az eşleşme varsa kritik olarak çıkar
+    critical = []
+    for main, result in matched.items():
+        if result['count'] < critical_n:
+            critical += result['missing'][:critical_n]
+    return critical
 
-def section_scores(cv_text, role_keywords, job_desc=None):
-    kw_score, present_kw, missing_kw = keyword_score(cv_text, role_keywords)
-    verbs = extract_action_verbs(cv_text)
-    metrics = find_metrics(cv_text)
-    if job_desc:
-        sim_score = similarity_with_job_desc(cv_text, job_desc)
-    else:
-        sim_score = None
-    # Ağırlıklandırılmış skor
-    base = 0.5 * kw_score + 0.2 * (len(verbs)*5) + 0.2 * (len(metrics)*5)
-    if sim_score is not None:
-        base = 0.6 * base + 0.4 * sim_score
-    base = min(int(base), 100)
-    return {
-        "overall": base,
-        "keywords": kw_score,
-        "present_keywords": present_kw,
-        "missing_keywords": missing_kw,
-        "action_verbs": verbs,
-        "metrics": metrics,
-        "job_desc_similarity": sim_score
-    }
+def calculate_score(matched):
+    # Eşleşen toplam anahtar kelime sayısının oranı üzerinden puanlama
+    total = sum(len(v["found"]) + len(v["missing"]) for v in matched.values())
+    found = sum(len(v["found"]) for v in matched.values())
+    if total == 0: return 0
+    raw = round((found / total) * 100)
+    # 90 üzeri zor, 75-85 iyi, 60-74 geliştirilebilir, altı zayıf
+    return min(raw+7, 100) if raw > 0 else 0
 
-def personalized_feedback(scores, role):
-    feedback = []
-    # Anahtar kelime önerisi
-    if scores["keywords"] < 70:
-        feedback.append(f"🔑 **Anahtar Kelimeler**: {len(scores['missing_keywords'])} eksik anahtar kelime bulundu. "
-                        f"CV'nize şunları eklemeyi değerlendirin: {', '.join(scores['missing_keywords'][:5])}.")
-    else:
-        feedback.append("✅ Anahtar kelimeler yeterli düzeyde kullanılmış.")
-
-    # Action verb önerisi
-    if len(scores["action_verbs"]) < 4:
-        feedback.append("🔨 **İfade Gücü**: Daha fazla etkili action verb (örn. designed, implemented, improved) kullanın.")
-    else:
-        feedback.append("✅ Güçlü action verb'ler kullanılmış.")
-
-    # Metrik önerisi
-    if len(scores["metrics"]) < 2:
-        feedback.append("📊 **Metrik ve Sonuçlar**: Proje ve görevlerinizde sayısal sonuç/metrik belirtmeye çalışın (örn. %30 daha hızlı, 100+ test case vs.).")
-    else:
-        feedback.append("✅ CV'de sayısal metrikler yer alıyor.")
-
-    # İş ilanı ile benzerlik
-    if scores.get("job_desc_similarity") is not None:
-        if scores["job_desc_similarity"] < 30:
-            feedback.append("🎯 **İş İlanı Uyumu**: CV'nizi iş ilanındaki gereksinimlerle daha uyumlu hale getirin.")
-        elif scores["job_desc_similarity"] < 60:
-            feedback.append("🟠 İş ilanı ile kısmen uyumlu. Daha fazla ortak anahtar kelime kullanabilirsiniz.")
+def get_recommendation(role, matched, crit_missing):
+    recs = []
+    if crit_missing:
+        recs.append(f"Kritik eksikler: {', '.join(crit_missing)}")
+    if matched.get("Ekstralar", {}).get("count", 0) < 2:
+        if role == "Manual Tester":
+            recs.append("SQL ve temel API test yeteneklerinizi vurgulayın.")
+        elif role == "Test Automation Engineer":
+            recs.append("Performance, security ve cloud test araçlarından bazılarını belirtin.")
         else:
-            feedback.append("✅ İş ilanı ile yüksek uyumluluk.")
-    return feedback
+            recs.append("Mock servis, güvenlik veya performans test araçları ekleyin.")
+    recs.append("Sertifika ve LinkedIn linkinizi eklemeyi unutmayın.")
+    return recs
 
-# ==== STREAMLIT UI ====
-
+# --- 5. Streamlit Arayüzü ---
 st.set_page_config(page_title="🎯 ATS CV Puanlayıcı", layout="centered")
 st.title("🎯 ATS CV Puanlayıcı")
 st.caption(
-    "Manuel Tester • Test Automation Engineer • Full Stack Automation Engineer için özelleştirilmiş CV analizi ve ATS uyumluluk puanı"
-)
-
-st.markdown(
-    """
-    <style>
-    .big-score {font-size: 40px; font-weight: bold; color: #5BCEFA;}
-    .feedback {font-size: 17px;}
-    </style>
-    """,
-    unsafe_allow_html=True
+    "Yazılım Test Mühendisliği rollerine özel: CV'nizi ATS sistemleri öncesi puanlayın, kritik öneriler alın!"
 )
 
 role = st.selectbox(
     "📌 Hedef Rolünüzü Seçin",
-    (
-        "Manual Tester",
-        "Test Automation Engineer",
-        "Full Stack Automation Engineer"
-    ),
-    help="Başvurmak istediğiniz pozisyonu seçin."
+    list(CRITERIA.keys()),
+    help="Başvurmak istediğiniz yazılım testi rolünü seçin."
 )
-
 uploaded_file = st.file_uploader(
     "📄 CV'nizi Yükleyin (PDF veya DOCX)", type=["pdf", "docx"]
 )
 
-job_desc = st.text_area(
-    "🎯 İş İlanı Ekleyin (Opsiyonel)",
-    placeholder="Başvurduğunuz iş ilanından önemli gereksinimleri buraya yapıştırabilirsiniz.",
-    help="İş ilanı eklerseniz, CV'nizin ilanla uyumu da ölçülür."
-)
-
 if st.button("🚀 CV'yi Analiz Et"):
-    if uploaded_file is not None:
-        try:
-            # Dosya metnini çıkar
-            if uploaded_file.type == "application/pdf":
-                cv_text = extract_text_from_pdf(uploaded_file)
-            elif uploaded_file.type in ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"]:
-                cv_text = extract_text_from_docx(uploaded_file)
-            else:
-                st.error("Yalnızca PDF ve DOCX dosyaları desteklenmektedir.")
-                st.stop()
-            if not cv_text or len(cv_text) < 200:
-                st.warning("CV'nizden yeterli metin çıkarılamadı. Farklı bir dosya ile tekrar deneyin.")
-                st.stop()
-
-            role_keywords = get_keywords_for_role(role)
-            scores = section_scores(cv_text, role_keywords, job_desc if job_desc.strip() else None)
-
-            st.markdown(f"<div class='big-score'>📊 {scores['overall']}/100</div>", unsafe_allow_html=True)
-
-            if scores['overall'] < 60:
-                st.error("🔴 Büyük Revizyon Gerekli")
-            elif scores['overall'] < 80:
-                st.warning("🟠 İyileştirme Gerekli")
-            else:
-                st.success("🟢 Harika! CV'niz ATS için güçlü görünüyor.")
-
-            with st.expander("🔗 Analiz Detayları"):
-                st.markdown(f"""
-                - **Anahtar Kelime Skoru:** {scores['keywords']} / 100  
-                - **Kullanılan Anahtar Kelimeler:** {', '.join(scores['present_keywords']) if scores['present_keywords'] else 'Yok'}
-                - **Eksik Anahtar Kelimeler:** {', '.join(scores['missing_keywords']) if scores['missing_keywords'] else 'Yok'}
-                - **Action Verb'ler:** {', '.join(scores['action_verbs']) if scores['action_verbs'] else 'Yok'}
-                - **Sayısal Metrikler:** {', '.join(scores['metrics']) if scores['metrics'] else 'Yok'}
-                """)
-
-                if scores.get("job_desc_similarity") is not None:
-                    st.markdown(f"- **İş İlanı Uyumluluk Skoru:** %{scores['job_desc_similarity']}")
-
-            st.subheader("🎯 Kişiselleştirilmiş Öneriler")
-            for f in personalized_feedback(scores, role):
-                st.markdown(f"<div class='feedback'>{f}</div>", unsafe_allow_html=True)
-
-            st.markdown(
-                """
-                <hr>
-                <small>
-                Not: Bu analiz, modern ATS yazılımlarının anahtar kelime ve içerik odaklı bakış açılarını simüle eder. Sonuçlar, öneri niteliğindedir.
-                </small>
-                """,
-                unsafe_allow_html=True
-            )
-        except Exception as e:
-            st.error(f"Analiz sırasında hata oluştu: {e}")
-    else:
+    if not uploaded_file:
         st.warning("Lütfen önce bir CV dosyası yükleyin.")
+        st.stop()
+
+    cv_text = extract_text(uploaded_file)
+    if not cv_text or len(cv_text) < 200:
+        st.error("CV'den yeterli metin çıkarılamadı. Lütfen farklı bir dosya ile tekrar deneyin.")
+        st.stop()
+
+    matched = match_criteria(cv_text, CRITERIA[role])
+    crit_missing = get_critical_missing(matched)
+    score = calculate_score(matched)
+    recs = get_recommendation(role, matched, crit_missing)
+
+    # Sonuç formatı
+    st.markdown(f"""
+    <br>
+    <b>[ROLE]</b> <span style="color:#5BCEFA">{role}</span>  
+    <b>[MATCHING KEYWORDS]</b> {sum(len(v['found']) for v in matched.values())} / {sum(len(v['found']) + len(v['missing']) for v in matched.values())}  
+    <b>[CRITICAL TO IMPROVE]</b> {'Eksik: ' + ', '.join(crit_missing) if crit_missing else 'Yok'}  
+    <b>[SCORE]</b> <span style="font-size:30px">{score}/100</span>  
+    """, unsafe_allow_html=True)
+
+    if score < 60:
+        st.error("🔴 Büyük revizyon gerekli.")
+    elif score < 75:
+        st.warning("🟠 Geliştirme gerekli.")
+    else:
+        st.success("🟢 Güçlü bir CV!")
+
+    st.subheader("🎯 Kişiselleştirilmiş Öneriler")
+    for r in recs:
+        st.write("•", r)
+
+    st.markdown("---")
+    st.markdown("##### **Ana Kriterler ve Bulunanlar**")
+    for head, vals in matched.items():
+        st.markdown(f"**{head}**: {', '.join(vals['found']) if vals['found'] else 'Yok'}")
+
+    with st.expander("⚙️ ATS için Genel İpuçları"):
+        for tip in ATS_TIPS:
+            st.write("•", tip)
