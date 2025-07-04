@@ -5,10 +5,7 @@ import docx2txt
 import pdfplumber
 import re
 import json
-import plotly.graph_objects as go
-import plotly.express as px
 from datetime import datetime
-import pandas as pd
 from typing import Dict, List, Tuple, Optional
 
 # --- 1. Geliştirilmiş Kriter Matrisleri ---
@@ -322,61 +319,69 @@ class CVAnalyzer:
 
 # --- 4. Görselleştirme Fonksiyonları ---
 
-def create_score_gauge(score: float) -> go.Figure:
-    """Skor göstergesi oluşturma"""
-    fig = go.Figure(go.Indicator(
-        mode = "gauge+number+delta",
-        value = score,
-        domain = {'x': [0, 1], 'y': [0, 1]},
-        title = {'text': "ATS Uyumluluk Skoru"},
-        delta = {'reference': 70},
-        gauge = {
-            'axis': {'range': [None, 100]},
-            'bar': {'color': "darkblue"},
-            'steps': [
-                {'range': [0, 50], 'color': "lightgray"},
-                {'range': [50, 70], 'color': "yellow"},
-                {'range': [70, 85], 'color': "lightgreen"},
-                {'range': [85, 100], 'color': "green"}
-            ],
-            'threshold': {
-                'line': {'color': "red", 'width': 4},
-                'thickness': 0.75,
-                'value': 90
-            }
-        }
-    ))
+def create_score_display(score: float) -> str:
+    """Skor göstergesi HTML olarak oluşturma"""
+    if score >= 85:
+        color = "#28a745"  # Yeşil
+        status = "Mükemmel"
+        emoji = "🟢"
+    elif score >= 70:
+        color = "#ffc107"  # Sarı
+        status = "İyi"
+        emoji = "🟡"
+    elif score >= 50:
+        color = "#17a2b8"  # Mavi
+        status = "Orta"
+        emoji = "🟠"
+    else:
+        color = "#dc3545"  # Kırmızı
+        status = "Zayıf"
+        emoji = "🔴"
     
-    fig.update_layout(height=300)
-    return fig
+    progress_html = f"""
+    <div style="text-align: center; margin: 20px 0;">
+        <div style="font-size: 48px; font-weight: bold; color: {color}; margin-bottom: 10px;">
+            {score}%
+        </div>
+        <div style="font-size: 24px; margin-bottom: 20px;">
+            {emoji} {status}
+        </div>
+        <div style="width: 100%; background-color: #e9ecef; border-radius: 10px; overflow: hidden;">
+            <div style="width: {score}%; height: 30px; background-color: {color}; border-radius: 10px; transition: width 0.3s ease;"></div>
+        </div>
+    </div>
+    """
+    return progress_html
 
-def create_category_chart(category_scores: Dict) -> go.Figure:
-    """Kategori bazlı skor grafiği"""
-    categories = list(category_scores.keys())
-    scores = list(category_scores.values())
+def create_category_bars(category_scores: Dict) -> str:
+    """Kategori bazlı skor çubukları HTML olarak oluşturma"""
+    html_parts = []
     
-    colors = ['#FF6B6B' if score < 50 else '#4ECDC4' if score < 70 else '#45B7D1' 
-              for score in scores]
+    for category, score in category_scores.items():
+        if score >= 70:
+            color = "#28a745"  # Yeşil
+            emoji = "🟢"
+        elif score >= 50:
+            color = "#ffc107"  # Sarı
+            emoji = "🟡"
+        else:
+            color = "#dc3545"  # Kırmızı
+            emoji = "🔴"
+        
+        category_html = f"""
+        <div style="margin: 15px 0; padding: 10px; border-radius: 8px; background-color: #f8f9fa;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <span style="font-weight: bold; font-size: 14px;">{category}</span>
+                <span style="font-weight: bold; color: {color};">{emoji} {score}%</span>
+            </div>
+            <div style="width: 100%; background-color: #e9ecef; border-radius: 5px; overflow: hidden; height: 20px;">
+                <div style="width: {score}%; height: 100%; background-color: {color}; transition: width 0.3s ease;"></div>
+            </div>
+        </div>
+        """
+        html_parts.append(category_html)
     
-    fig = go.Figure(data=[
-        go.Bar(
-            x=categories,
-            y=scores,
-            marker_color=colors,
-            text=[f'{score}%' for score in scores],
-            textposition='auto',
-        )
-    ])
-    
-    fig.update_layout(
-        title="Kategori Bazlı Performans",
-        xaxis_title="Kategoriler",
-        yaxis_title="Skor (%)",
-        xaxis={'tickangle': 45},
-        height=400
-    )
-    
-    return fig
+    return '<div style="margin: 20px 0;">' + ''.join(html_parts) + '</div>'
 
 # --- 5. Streamlit Ana Uygulama ---
 
@@ -443,43 +448,30 @@ def main():
             st.stop()
         
         # Sonuçları görüntüle
-        col1, col2 = st.columns([2, 1])
+        st.markdown("## 📊 Analiz Sonuçları")
+        
+        # Skor göstergesi
+        score_html = create_score_display(results["score_info"]["overall"])
+        st.markdown(score_html, unsafe_allow_html=True)
+        
+        # Kategori çubukları
+        st.markdown("### 📈 Kategori Bazlı Performans")
+        category_html = create_category_bars(results["score_info"]["by_category"])
+        st.markdown(category_html, unsafe_allow_html=True)
+        
+        # Özet bilgiler
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.markdown("## 📊 Analiz Sonuçları")
-            
-            # Skor göstergesi
-            fig_gauge = create_score_gauge(results["score_info"]["overall"])
-            st.plotly_chart(fig_gauge, use_container_width=True)
-            
-            # Kategori grafiği
-            fig_category = create_category_chart(results["score_info"]["by_category"])
-            st.plotly_chart(fig_category, use_container_width=True)
+            st.metric("Toplam Anahtar Kelime", results["score_info"]["total_keywords"])
         
         with col2:
-            st.markdown("## 📋 Özet Bilgiler")
-            
-            # Skor kartı
-            score = results["score_info"]["overall"]
-            if score >= 85:
-                status = "🟢 Mükemmel"
-                color = "success"
-            elif score >= 70:
-                status = "🟡 İyi"
-                color = "warning"
-            elif score >= 50:
-                status = "🟠 Orta"
-                color = "info"
-            else:
-                status = "🔴 Zayıf"
-                color = "error"
-            
-            st.metric("ATS Skoru", f"{score}%", f"{status}")
-            
-            # Diğer metrikler
-            st.metric("Toplam Anahtar Kelime", results["score_info"]["total_keywords"])
             st.metric("Eşleşen Kelime", results["score_info"]["total_found"])
+        
+        with col3:
             st.metric("Deneyim Yılı", f"{results['experience_years']} yıl")
+        
+        with col4:
             st.metric("Kelime Sayısı", results["word_count"])
         
         # Öneriler
