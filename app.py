@@ -6,7 +6,7 @@ import pdfplumber
 import re
 import json
 from datetime import datetime
-import openai
+from openai import OpenAI
 
 # --- 1. Streamlit Ayarları ---
 st.set_page_config(
@@ -16,8 +16,7 @@ st.set_page_config(
 )
 
 # --- 2. OpenAI API Key ---
-# Streamlit secrets dosyasını kullan: streamlit.io'da AYARLAR > Secrets bölümüne ekleyebilirsin
-openai.api_key = st.secrets.get("OPENAI_API_KEY")
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # --- 3. Dark Theme ---
 def inject_dark_theme():
@@ -86,7 +85,8 @@ Return a JSON object with: {{
 CV TEXT:
 {cv_text[:4000]}
 """
-    response = openai.ChatCompletion.create(
+
+    response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are an ATS CV analysis expert for software testing."},
@@ -95,7 +95,7 @@ CV TEXT:
         temperature=0.1
     )
 
-    result = response['choices'][0]['message']['content']
+    result = response.choices[0].message.content
 
     try:
         result_json = json.loads(result)
@@ -139,7 +139,7 @@ if st.button("🚀 LLM ile Analiz Et"):
     if "error" in llm_result:
         st.error(llm_result["error"])
     else:
-        st.success("Analiz tamamlandı!")
+        st.success("✅ Analiz tamamlandı!")
         st.markdown(f"## 🎯 ATS Skoru: **{llm_result['role_fit_score']}%**")
         st.markdown(f"**Tahmini Deneyim:** {llm_result['experience_years']} yıl")
         
@@ -174,4 +174,3 @@ else:
     st.info("""
     👈 Sol panelden rolünüzü seçin, CV'nizi yükleyin ve 'LLM ile Analiz Et' butonuna basın.
     """)
-
