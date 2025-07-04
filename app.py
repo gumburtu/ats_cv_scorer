@@ -6,10 +6,9 @@ import pdfplumber
 import re
 import json
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List
 
-# --- 1. Geliştirilmiş Kriter Matrisleri ---
-
+# --- 1. Kriter Matrisleri ---
 CRITERIA = {
     "Manual Tester": {
         "Temel Test Bilgileri": [
@@ -110,7 +109,7 @@ CRITERIA = {
     }
 }
 
-# --- 2. Geliştirilmiş ATS Tavsiye Mesajları ---
+# --- 2. ATS Tavsiyeleri ---
 ATS_TIPS = {
     "Genel": [
         "Başlık ve özet kısmında rol odaklı anahtar kelimeler kullanın",
@@ -135,7 +134,6 @@ ATS_TIPS = {
 
 # --- 3. Dark Theme CSS ---
 def inject_dark_theme():
-    """Dark theme CSS injection"""
     st.markdown("""
     <style>
     .main .block-container {
@@ -207,9 +205,8 @@ class CVAnalyzer:
     def __init__(self):
         self.cv_text = ""
         self.analysis_results = {}
-        
+
     def extract_text(self, file) -> str:
-        """CV'den metin çıkarma"""
         try:
             if file.type == "application/pdf":
                 with pdfplumber.open(file) as pdf:
@@ -235,13 +232,11 @@ class CVAnalyzer:
             return ""
 
     def preprocess_text(self, text: str) -> str:
-        """Metin ön işleme"""
         text = re.sub(r'\s+', ' ', text)
         text = re.sub(r'[^\w\s\-\+\#\.]', ' ', text)
         return text.strip()
 
     def extract_experience_years(self, text: str) -> int:
-        """Deneyim yılını çıkarma"""
         patterns = [
             r'(\d+)\s*(?:years?|yıl|year)',
             r'(\d+)\s*(?:yr|y)s?',
@@ -255,7 +250,6 @@ class CVAnalyzer:
         return max(years) if years else 0
 
     def match_criteria(self, cv_text: str, criteria_dict: Dict) -> Dict:
-        """Kriter eşleşmesi analizi"""
         cv_lower = cv_text.lower()
         summary = {}
         for main_cat, keywords in criteria_dict.items():
@@ -273,7 +267,6 @@ class CVAnalyzer:
         return summary
 
     def calculate_detailed_score(self, matched: Dict) -> Dict:
-        """Detaylı skor hesaplama"""
         total_keywords = sum(len(v["found"]) + len(v["missing"]) for v in matched.values())
         total_found = sum(len(v["found"]) for v in matched.values())
         if total_keywords == 0:
@@ -301,7 +294,6 @@ class CVAnalyzer:
         }
 
     def get_recommendations(self, role: str, matched: Dict, score_info: Dict) -> List[str]:
-        """Kişiselleştirilmiş öneriler"""
         recommendations = []
         low_categories = [cat for cat, score in score_info["by_category"].items() if score < 50]
         if low_categories:
@@ -328,7 +320,6 @@ class CVAnalyzer:
         return recommendations
 
     def analyze_cv(self, file, role: str) -> Dict:
-        """Ana analiz fonksiyonu"""
         raw_text = self.extract_text(file)
         if not raw_text or len(raw_text) < 100:
             return {"error": "CV'den yeterli metin çıkarılamadı"}
@@ -345,10 +336,9 @@ class CVAnalyzer:
             "word_count": len(self.cv_text.split())
         }
 
-# --- 5. Görselleştirme Fonksiyonları (Dark Theme) ---
+# --- 5. Görselleştirme Fonksiyonları ---
 
 def create_score_display(score: float) -> str:
-    """Dark theme skor göstergesi"""
     if score >= 85:
         color = "#4ade80"
         status = "Mükemmel"
@@ -381,7 +371,6 @@ def create_score_display(score: float) -> str:
     return progress_html
 
 def create_category_bars(category_scores: Dict) -> str:
-    """Dark theme kategori çubukları - Fixed HTML"""
     html_parts = []
     for category, score in category_scores.items():
         if score >= 70:
@@ -536,21 +525,23 @@ def main():
             mime="application/json"
         )
     else:
-        # Başlangıç sayfası
-        st.markdown("""
-        <div style='background-color: #2d2d2d; padding: 28px; border-radius: 10px; margin-top: 25px; border: 1px solid #404040;'>
-            <h4 style='color: #ffffff; margin-bottom: 12px;'>Nasıl Kullanılır?</h4>
-            <ul style="color: #cccccc; font-size: 16px; line-height: 1.7;">
-                <li>Sol menüden başvurmak istediğiniz <b>rolü</b> seçin</li>
-                <li>CV'nizi <b>PDF</b> veya <b>DOCX</b> formatında yükleyin</li>
-                <li>"CV'yi Analiz Et" butonuna tıklayın</li>
-                <li>Detaylı skor, kategori analizi ve önerileri inceleyin</li>
-                <li>JSON formatında kişisel analiz raporunuzu indirin</li>
-            </ul>
-            <hr style="border: 1px solid #404040;">
-            <b>✨ İpucu:</b> Skorunuzu yükseltmek için eksik olan anahtar kelimeleri ve önerileri dikkate alın!
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div style='background-color: #2d2d2d; padding: 28px; border-radius: 10px; margin-top: 25px; border: 1px solid #404040;'>
+                <h4 style='color: #ffffff; margin-bottom: 12px;'>Nasıl Kullanılır?</h4>
+                <ul style="color: #cccccc; font-size: 16px; line-height: 1.7;">
+                    <li>Sol menüden başvurmak istediğiniz <b>rolü</b> seçin</li>
+                    <li>CV'nizi <b>PDF</b> veya <b>DOCX</b> formatında yükleyin</li>
+                    <li>"CV'yi Analiz Et" butonuna tıklayın</li>
+                    <li>Detaylı skor, kategori analizi ve önerileri inceleyin</li>
+                    <li>JSON formatında kişisel analiz raporunuzu indirin</li>
+                </ul>
+                <hr style="border: 1px solid #404040;">
+                <b>✨ İpucu:</b> Skorunuzu yükseltmek için eksik olan anahtar kelimeleri ve önerileri dikkate alın!
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 if __name__ == "__main__":
     main()
