@@ -7,7 +7,6 @@ import re
 import json
 from datetime import datetime
 from typing import Dict, List
-st.markdown(your_html_string, unsafe_allow_html=True)
 
 # --- 1. Kriter Matrisleri ---
 CRITERIA = {
