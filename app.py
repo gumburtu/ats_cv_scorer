@@ -355,6 +355,7 @@ def create_score_display(score: float) -> str:
         color = "#f87171"
         status = "Zayıf"
         emoji = "🔴"
+    
     progress_html = f"""
     <div style="text-align: center; margin: 20px 0; padding: 20px; background-color: #2d2d2d; border-radius: 12px; border: 1px solid #404040;">
         <div style="font-size: 48px; font-weight: bold; color: {color}; margin-bottom: 10px;">
@@ -382,6 +383,7 @@ def create_category_bars(category_scores: Dict) -> str:
         else:
             color = "#f87171"
             emoji = "🔴"
+        
         category_html = f"""
         <div style="margin: 15px 0; padding: 15px; border-radius: 8px; background-color: #2d2d2d; border: 1px solid #404040;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -394,6 +396,7 @@ def create_category_bars(category_scores: Dict) -> str:
         </div>
         """
         html_parts.append(category_html)
+    
     return '<div style="margin: 20px 0;">' + ''.join(html_parts) + '</div>'
 
 # --- 6. Streamlit Ana Uygulama ---
@@ -405,7 +408,9 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded"
     )
+    
     inject_dark_theme()
+    
     st.title("🎯 Gelişmiş ATS CV Puanlayıcı")
     st.markdown("""
     <div style='background-color: #2d2d2d; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #404040;'>
@@ -413,42 +418,59 @@ def main():
         <p style='color: #cccccc; margin: 0;'>CV'nizi ATS (Applicant Tracking Systems) sistemlerine hazırlayın, detaylı analiz ve öneriler alın!</p>
     </div>
     """, unsafe_allow_html=True)
+    
     with st.sidebar:
         st.header("⚙️ Ayarlar")
+        
         role = st.selectbox(
             "📌 Hedef Rolünüzü Seçin",
             list(CRITERIA.keys()),
             help="Başvurmak istediğiniz yazılım testi rolünü seçin"
         )
+        
         role_info = {
             "Manual Tester": "🔍 Manuel test süreçlerinde uzman, test senaryoları yazan ve uygulayan pozisyon",
             "Test Automation Engineer": "🤖 Test otomasyonu araçları kullanarak otomatik testler geliştiren pozisyon",
             "Full Stack Automation Engineer": "🚀 UI, API, Database ve Performance testlerini kapsayan tam yığın test uzmanı"
         }
         st.info(role_info[role])
+        
         uploaded_file = st.file_uploader(
             "📄 CV'nizi Yükleyin",
             type=["pdf", "docx"],
             help="PDF veya Word formatında CV yükleyebilirsiniz"
         )
+        
         analyze_button = st.button("🚀 CV'yi Analiz Et", type="primary")
+    
     if analyze_button:
         if not uploaded_file:
             st.warning("⚠️ Lütfen önce bir CV dosyası yükleyin.")
             st.stop()
+        
         with st.spinner("🔄 CV analiz ediliyor..."):
             analyzer = CVAnalyzer()
             results = analyzer.analyze_cv(uploaded_file, role)
+        
         if "error" in results:
             st.error(f"❌ {results['error']}")
             st.stop()
+        
+        # Analiz sonuçları
         st.markdown("## 📊 Analiz Sonuçları")
+        
+        # Skor gösterimi
         score_html = create_score_display(results["score_info"]["overall"])
         st.markdown(score_html, unsafe_allow_html=True)
+        
+        # Kategori bazlı performans
         st.markdown("### 📈 Kategori Bazlı Performans")
         category_html = create_category_bars(results["score_info"]["by_category"])
         st.markdown(category_html, unsafe_allow_html=True)
+        
+        # Metriklerin gösterimi
         col1, col2, col3, col4 = st.columns(4)
+        
         with col1:
             st.markdown(f"""
             <div class="metric-container">
@@ -456,6 +478,7 @@ def main():
                 <div style="color: #cccccc; font-size: 14px;">Toplam Anahtar Kelime</div>
             </div>
             """, unsafe_allow_html=True)
+        
         with col2:
             st.markdown(f"""
             <div class="metric-container">
@@ -463,6 +486,7 @@ def main():
                 <div style="color: #cccccc; font-size: 14px;">Eşleşen Kelime</div>
             </div>
             """, unsafe_allow_html=True)
+        
         with col3:
             st.markdown(f"""
             <div class="metric-container">
@@ -470,6 +494,7 @@ def main():
                 <div style="color: #cccccc; font-size: 14px;">Deneyim Yılı</div>
             </div>
             """, unsafe_allow_html=True)
+        
         with col4:
             st.markdown(f"""
             <div class="metric-container">
@@ -477,13 +502,18 @@ def main():
                 <div style="color: #cccccc; font-size: 14px;">Kelime Sayısı</div>
             </div>
             """, unsafe_allow_html=True)
+        
+        # Öneriler
         st.markdown("## 💡 Kişiselleştirilmiş Öneriler")
         for i, recommendation in enumerate(results["recommendations"], 1):
             st.markdown(f"**{i}.** {recommendation}")
+        
+        # Detaylı kategori analizi
         st.markdown("## 🔍 Detaylı Kategori Analizi")
         for category, data in results["matched"].items():
             with st.expander(f"{category} - {data['percentage']}% ({data['count']} adet)"):
                 col1, col2 = st.columns(2)
+                
                 with col1:
                     st.markdown("**✅ Bulunan Kelimeler:**")
                     if data["found"]:
@@ -491,6 +521,7 @@ def main():
                             st.markdown(f"• {keyword}")
                     else:
                         st.markdown("_Bulunan kelime yok_")
+                
                 with col2:
                     st.markdown("**❌ Eksik Kelimeler:**")
                     if data["missing"]:
@@ -500,11 +531,15 @@ def main():
                             st.markdown(f"... ve {len(data['missing']) - 10} kelime daha")
                     else:
                         st.markdown("_Eksik kelime yok_")
+        
+        # ATS İpuçları
         st.markdown("## 💼 ATS İpuçları")
         for category, tips in ATS_TIPS.items():
             with st.expander(f"{category} İpuçları"):
                 for tip in tips:
                     st.markdown(f"• {tip}")
+        
+        # Rapor indirme
         st.markdown("## 📥 Rapor İndir")
         report_data = {
             "Role": role,
@@ -517,6 +552,7 @@ def main():
             "Category_Scores": results["score_info"]["by_category"],
             "Recommendations": results["recommendations"]
         }
+        
         report_json = json.dumps(report_data, indent=2, ensure_ascii=False)
         st.download_button(
             label="📊 JSON Raporu İndir",
@@ -524,24 +560,23 @@ def main():
             file_name=f"cv_analysis_{role.replace(' ', '_').lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json"
         )
+    
     else:
-        st.markdown(
-            """
-            <div style='background-color: #2d2d2d; padding: 28px; border-radius: 10px; margin-top: 25px; border: 1px solid #404040;'>
-                <h4 style='color: #ffffff; margin-bottom: 12px;'>Nasıl Kullanılır?</h4>
-                <ul style="color: #cccccc; font-size: 16px; line-height: 1.7;">
-                    <li>Sol menüden başvurmak istediğiniz <b>rolü</b> seçin</li>
-                    <li>CV'nizi <b>PDF</b> veya <b>DOCX</b> formatında yükleyin</li>
-                    <li>"CV'yi Analiz Et" butonuna tıklayın</li>
-                    <li>Detaylı skor, kategori analizi ve önerileri inceleyin</li>
-                    <li>JSON formatında kişisel analiz raporunuzu indirin</li>
-                </ul>
-                <hr style="border: 1px solid #404040;">
-                <b>✨ İpucu:</b> Skorunuzu yükseltmek için eksik olan anahtar kelimeleri ve önerileri dikkate alın!
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        # Kullanım kılavuzu
+        st.markdown("""
+        <div style='background-color: #2d2d2d; padding: 28px; border-radius: 10px; margin-top: 25px; border: 1px solid #404040;'>
+            <h4 style='color: #ffffff; margin-bottom: 12px;'>Nasıl Kullanılır?</h4>
+            <ul style="color: #cccccc; font-size: 16px; line-height: 1.7;">
+                <li>Sol menüden başvurmak istediğiniz <b>rolü</b> seçin</li>
+                <li>CV'nizi <b>PDF</b> veya <b>DOCX</b> formatında yükleyin</li>
+                <li>"CV'yi Analiz Et" butonuna tıklayın</li>
+                <li>Detaylı skor, kategori analizi ve önerileri inceleyin</li>
+                <li>JSON formatında kişisel analiz raporunuzu indirin</li>
+            </ul>
+            <hr style="border: 1px solid #404040;">
+            <b>✨ İpucu:</b> Skorunuzu yükseltmek için eksik olan anahtar kelimeleri ve önerileri dikkate alın!
+        </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
